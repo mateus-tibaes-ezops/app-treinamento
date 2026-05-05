@@ -1,6 +1,10 @@
 // Configuration - Update this with your backend URL
 // Automatically detects if running in Docker or standalone
 const getApiBaseUrl = () => {
+    if (window.API_BASE_URL) {
+        return window.API_BASE_URL.replace(/\/$/, '');
+    }
+
     // If running in Docker, backend is accessible via the exposed port
     // If running standalone, use localhost
     const hostname = window.location.hostname;
@@ -8,6 +12,10 @@ const getApiBaseUrl = () => {
     
     // Check if we're accessing via localhost or 127.0.0.1
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+        if (window.location.port === '' || window.location.port === '80') {
+            return 'http://localhost:3001/api';
+        }
+
         return 'http://localhost:3000/api';
     }
     
@@ -231,4 +239,3 @@ function escapeHtml(text) {
 // Make functions available globally for onclick handlers
 window.editRecord = editRecord;
 window.deleteRecord = deleteRecord;
-
