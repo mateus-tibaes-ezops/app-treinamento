@@ -24,6 +24,7 @@ CloudFront
 - Sem NAT Gateway. O ECS roda em subnets publicas com IP publico, mas aceita trafego somente do ALB.
 - RDS pequeno: `db.t4g.micro`, 20 GiB, single-AZ.
 - ECS Fargate minimo: `256` CPU e `512` MiB, `desired_count = 1`.
+- Subnets privadas com route table privada explicita, sem rota para internet.
 - CloudWatch logs com retencao de 7 dias.
 - CloudFront `PriceClass_100`.
 - RDS com `skip_final_snapshot = true` e `deletion_protection = false` para facilitar destruir o ambiente de treinamento.
