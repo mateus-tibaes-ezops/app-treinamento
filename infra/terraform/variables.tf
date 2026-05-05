@@ -69,3 +69,21 @@ variable "backend_desired_count" {
   type        = number
   default     = 1
 }
+
+variable "route53_zone_name" {
+  description = "Public Route53 hosted zone used for the application domain."
+  type        = string
+  default     = "ezopscloud.co"
+}
+
+variable "domain_name" {
+  description = "Custom domain for the CloudFront distribution."
+  type        = string
+  default     = "app-treinamento-mateus.ezopscloud.co"
+}
+
+variable "github_repository" {
+  description = "GitHub repository allowed to assume the deploy role."
+  type        = string
+  default     = "mateus-tibaes-ezops/app-treinamento"
+}

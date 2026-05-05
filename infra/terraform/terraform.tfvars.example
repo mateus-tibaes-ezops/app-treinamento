@@ -9,3 +9,6 @@ backend_image_tag     = "latest"
 backend_cpu           = 256
 backend_memory        = 512
 backend_desired_count = 1
+route53_zone_name     = "ezopscloud.co"
+domain_name           = "app-treinamento-mateus.ezopscloud.co"
+github_repository     = "mateus-tibaes-ezops/app-treinamento"

@@ -12,6 +12,15 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_route53_zone" "main" {
+  name         = "${var.route53_zone_name}."
+  private_zone = false
+}
+
+data "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -359,7 +368,38 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_acm_certificate" "frontend" {
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "frontend_certificate_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.frontend.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.record]
+}
+
+resource "aws_acm_certificate_validation" "frontend" {
+  certificate_arn         = aws_acm_certificate.frontend.arn
+  validation_record_fqdns = [for record in aws_route53_record.frontend_certificate_validation : record.fqdn]
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
+  aliases             = [var.domain_name]
   enabled             = true
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
@@ -438,7 +478,33 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    acm_certificate_arn      = aws_acm_certificate_validation.frontend.certificate_arn
+    minimum_protocol_version = "TLSv1.2_2021"
+    ssl_support_method       = "sni-only"
+  }
+}
+
+resource "aws_route53_record" "frontend_alias_a" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.frontend.domain_name
+    zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "frontend_alias_aaaa" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.domain_name
+  type    = "AAAA"
+
+  alias {
+    name                   = aws_cloudfront_distribution.frontend.domain_name
+    zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
+    evaluate_target_health = false
   }
 }
 
@@ -459,6 +525,88 @@ resource "aws_s3_bucket_policy" "frontend" {
             "AWS:SourceArn" = aws_cloudfront_distribution.frontend.arn
           }
         }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "github_actions" {
+  name = "${local.name}-github-actions"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = data.aws_iam_openid_connect_provider.github.arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          }
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/heads/main"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "github_actions_deploy" {
+  name = "${local.name}-github-actions-deploy"
+  role = aws_iam_role.github_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:CompleteLayerUpload",
+          "ecr:InitiateLayerUpload",
+          "ecr:PutImage",
+          "ecr:UploadLayerPart"
+        ]
+        Resource = aws_ecr_repository.backend.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:DescribeServices",
+          "ecs:UpdateService"
+        ]
+        Resource = aws_ecs_service.backend.id
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:DeleteObject",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject"
+        ]
+        Resource = [
+          aws_s3_bucket.frontend.arn,
+          "${aws_s3_bucket.frontend.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateInvalidation"
+        ]
+        Resource = aws_cloudfront_distribution.frontend.arn
       }
     ]
   })

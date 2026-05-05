@@ -91,6 +91,33 @@ curl "$(terraform output -raw api_url)/records"
 
 Abra a URL do frontend e teste criar, editar e deletar registros.
 
+## Dominio
+
+O dominio customizado padrao e:
+
+```text
+https://app-treinamento-mateus.ezopscloud.co
+```
+
+O Terraform cria:
+
+- certificado ACM em `us-east-1`;
+- registros DNS de validacao do certificado;
+- alias `A` e `AAAA` no Route53 apontando para o CloudFront.
+
+## Pipelines
+
+As pipelines ficam em `.github/workflows`:
+
+- `ci.yml`: instala dependencias do backend, faz build das imagens Docker e valida Terraform.
+- `deploy.yml`: em push na `main`, publica imagem no ECR, força novo deploy no ECS, sincroniza frontend no S3, invalida CloudFront e testa `/api/health`.
+
+O deploy usa GitHub Actions OIDC com a role criada pelo Terraform:
+
+```text
+app-treinamento-dev-github-actions
+```
+
 ## Destruir ambiente
 
 Para evitar custo parado:

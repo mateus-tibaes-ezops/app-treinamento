@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install --omit=dev
+
+      - name: Build backend image
+        run: docker build -t app-treinamento-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t app-treinamento-frontend:ci ./frontend
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform fmt
+        run: terraform -chdir=infra/terraform fmt -check
+
+      - name: Terraform init
+        run: terraform -chdir=infra/terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform -chdir=infra/terraform validate

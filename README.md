@@ -197,6 +197,8 @@ Cost-conscious defaults:
 - RDS MySQL `db.t4g.micro` with 20 GiB.
 - No NAT Gateway.
 - S3 and CloudFront for the frontend.
+- Custom domain with Route53 and ACM.
+- GitHub Actions pipelines for CI and deploy.
 
 High-level deploy flow:
 
@@ -215,3 +217,8 @@ terraform apply
 cd ../..
 ./infra/scripts/deploy-frontend.sh
 ```
+
+Current application URLs:
+
+- Frontend: `https://app-treinamento-mateus.ezopscloud.co`
+- API health check: `https://app-treinamento-mateus.ezopscloud.co/api/health`

@@ -5,12 +5,12 @@ output "ecr_repository_url" {
 
 output "api_url" {
   description = "HTTPS API base URL through CloudFront."
-  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}/api"
+  value       = "https://${var.domain_name}/api"
 }
 
 output "api_health_url" {
   description = "HTTPS API health check URL through CloudFront."
-  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}/api/health"
+  value       = "https://${var.domain_name}/api/health"
 }
 
 output "alb_api_url" {
@@ -25,6 +25,11 @@ output "frontend_bucket" {
 
 output "frontend_url" {
   description = "CloudFront frontend URL."
+  value       = "https://${var.domain_name}"
+}
+
+output "cloudfront_url" {
+  description = "Default CloudFront frontend URL."
   value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
 }
 
@@ -51,4 +56,14 @@ output "ecs_cluster_name" {
 output "ecs_service_name" {
   description = "ECS backend service name."
   value       = aws_ecs_service.backend.name
+}
+
+output "domain_name" {
+  description = "Custom application domain."
+  value       = var.domain_name
+}
+
+output "github_actions_role_arn" {
+  description = "IAM role ARN used by GitHub Actions OIDC deploy workflow."
+  value       = aws_iam_role.github_actions.arn
 }
