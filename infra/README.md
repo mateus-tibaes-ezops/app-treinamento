@@ -111,15 +111,20 @@ O Terraform cria:
 As pipelines ficam em `.github/workflows`:
 
 - `backend-ci.yml`: instala dependencias do backend e faz build da imagem Docker.
-- `frontend-ci.yml`: faz build da imagem Docker do frontend.
-- `infra-ci.yml`: valida `terraform fmt`, `terraform init` e `terraform validate`.
-- `deploy.yml`: em push na `main`, publica imagem no ECR, força novo deploy no ECS, sincroniza frontend no S3, invalida CloudFront e testa `/api/health`.
+- `backend-ci.yml`: em push na `main`, publica imagem no ECR e força novo deploy no ECS.
+- `frontend-ci.yml`: faz checks estaticos, build da imagem Docker e, em push na `main`, sincroniza frontend no S3, invalida CloudFront e testa `/api/health`.
+- `infra-ci.yml`: valida `terraform fmt`, `terraform init`, `terraform validate` e `terraform plan`.
 
 O deploy usa GitHub Actions OIDC com a role criada pelo Terraform:
 
 ```text
 app-treinamento-dev-github-actions
 ```
+
+O Terraform state remoto usa:
+
+- bucket S3: `app-treinamento-tfstate-618889059366-us-east-1`
+- tabela DynamoDB: `app-treinamento-tfstate-locks`
 
 ## Destruir ambiente
 

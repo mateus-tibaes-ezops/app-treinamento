@@ -619,10 +619,36 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
       {
         Effect = "Allow"
         Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::app-treinamento-tfstate-618889059366-us-east-1",
+          "arn:aws:s3:::app-treinamento-tfstate-618889059366-us-east-1/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DeleteItem",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem"
+        ]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/app-treinamento-tfstate-locks"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "cloudfront:CreateInvalidation"
         ]
         Resource = aws_cloudfront_distribution.frontend.arn
       }
     ]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_read_only" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }

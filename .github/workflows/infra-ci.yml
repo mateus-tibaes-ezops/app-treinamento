@@ -12,13 +12,30 @@ on:
       - "infra/terraform/**"
       - ".github/workflows/infra-ci.yml"
 
+env:
+  AWS_REGION: us-east-1
+  AWS_ROLE_ARN: arn:aws:iam::618889059366:role/app-treinamento-dev-github-actions
+
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/terraform
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -26,10 +43,19 @@ jobs:
           terraform_version: 1.8.5
 
       - name: Terraform fmt
-        run: terraform -chdir=infra/terraform fmt -check
+        run: terraform fmt -check
 
-      - name: Terraform init
-        run: terraform -chdir=infra/terraform init -backend=false
+      - name: Terraform init without backend
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+        run: terraform init -backend=false
+
+      - name: Terraform init with remote backend
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform init
 
       - name: Terraform validate
-        run: terraform -chdir=infra/terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform plan -lock=false -input=false

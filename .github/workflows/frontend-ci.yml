@@ -12,13 +12,62 @@ on:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
 
+env:
+  AWS_REGION: us-east-1
+  AWS_ROLE_ARN: arn:aws:iam::618889059366:role/app-treinamento-dev-github-actions
+  FRONTEND_BUCKET: app-treinamento-dev-frontend-618889059366
+  CLOUDFRONT_DISTRIBUTION_ID: E2B8XKFPEJ6A73
+  API_URL: https://app-treinamento-mateus.ezopscloud.co/api
+  FRONTEND_URL: https://app-treinamento-mateus.ezopscloud.co
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Static file checks
+        run: |
+          test -f frontend/index.html
+          test -f frontend/app.js
+          test -f frontend/styles.css
+          node --check frontend/app.js
+
       - name: Build Docker image
         run: docker build -t app-treinamento-frontend:ci ./frontend
+
+      - name: Configure AWS credentials
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Prepare frontend files
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p /tmp/app-treinamento-frontend
+          cp -R frontend/. /tmp/app-treinamento-frontend/
+          rm -f /tmp/app-treinamento-frontend/Dockerfile
+          rm -f /tmp/app-treinamento-frontend/nginx.conf
+          rm -f /tmp/app-treinamento-frontend/.dockerignore
+          cat > /tmp/app-treinamento-frontend/config.js <<CONFIG
+          window.API_BASE_URL = "$API_URL";
+          CONFIG
+
+      - name: Upload frontend to S3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: aws s3 sync /tmp/app-treinamento-frontend/ "s3://$FRONTEND_BUCKET" --delete
+
+      - name: Invalidate CloudFront
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
+
+      - name: Smoke test
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: curl --fail --silent "$FRONTEND_URL/api/health"
