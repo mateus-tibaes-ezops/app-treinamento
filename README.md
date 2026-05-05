@@ -198,7 +198,7 @@ Cost-conscious defaults:
 - No NAT Gateway.
 - S3 and CloudFront for the frontend.
 - Custom domain with Route53 and ACM.
-- GitHub Actions pipelines for CI and deploy.
+- GitHub Actions pipelines split into Backend CI, Frontend CI, Infra CI, and Deploy.
 
 High-level deploy flow:
 

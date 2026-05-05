@@ -1,33 +1,24 @@
-name: CI
+name: Infra CI
 
 on:
   pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/infra-ci.yml"
   push:
     branches:
       - main
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/infra-ci.yml"
 
 jobs:
-  validate:
+  terraform:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm install --omit=dev
-
-      - name: Build backend image
-        run: docker build -t app-treinamento-backend:ci ./backend
-
-      - name: Build frontend image
-        run: docker build -t app-treinamento-frontend:ci ./frontend
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

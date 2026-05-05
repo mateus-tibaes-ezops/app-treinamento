@@ -110,7 +110,9 @@ O Terraform cria:
 
 As pipelines ficam em `.github/workflows`:
 
-- `ci.yml`: instala dependencias do backend, faz build das imagens Docker e valida Terraform.
+- `backend-ci.yml`: instala dependencias do backend e faz build da imagem Docker.
+- `frontend-ci.yml`: faz build da imagem Docker do frontend.
+- `infra-ci.yml`: valida `terraform fmt`, `terraform init` e `terraform validate`.
 - `deploy.yml`: em push na `main`, publica imagem no ECR, força novo deploy no ECS, sincroniza frontend no S3, invalida CloudFront e testa `/api/health`.
 
 O deploy usa GitHub Actions OIDC com a role criada pelo Terraform:
