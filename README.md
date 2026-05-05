@@ -188,5 +188,30 @@ The application automatically creates a `records` table with the following struc
 
 ISC
 
-test new PR
-# app-treinamento
+## AWS Infrastructure
+
+Terraform and deploy scripts are available in [`infra/`](infra/README.md).
+
+Cost-conscious defaults:
+- ECS Fargate with `256` CPU and `512` MiB.
+- RDS MySQL `db.t4g.micro` with 20 GiB.
+- No NAT Gateway.
+- S3 and CloudFront for the frontend.
+
+High-level deploy flow:
+
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform apply -target=aws_ecr_repository.backend
+
+cd ../..
+./infra/scripts/push-backend-image.sh
+
+cd infra/terraform
+terraform apply
+
+cd ../..
+./infra/scripts/deploy-frontend.sh
+```

@@ -30,3 +30,12 @@ Thumbs.db
 dist/
 build/
 
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+terraform.tfvars
+terraform.tfvars.json
+

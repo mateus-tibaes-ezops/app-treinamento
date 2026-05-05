@@ -1,0 +1,11 @@
+aws_region            = "us-east-1"
+project_name          = "app-treinamento"
+environment           = "dev"
+db_name               = "training_app"
+db_username           = "appuser"
+db_instance_class     = "db.t4g.micro"
+db_allocated_storage  = 20
+backend_image_tag     = "latest"
+backend_cpu           = 256
+backend_memory        = 512
+backend_desired_count = 1

@@ -1,80 +1,101 @@
-# Plano de infra AWS
+# Infra AWS
 
-## Divisao em 3 partes
+Infraestrutura Terraform para publicar a aplicacao na AWS com foco em custo baixo para treinamento.
 
-### Parte 1 - Base do projeto
-
-Status: concluida neste workspace.
-
-- Clonar o repositorio.
-- Identificar a stack: frontend estatico, backend Node.js/Express e MySQL.
-- Criar empacotamento Docker para frontend e backend.
-- Criar `docker-compose.yml` para validar a aplicacao localmente com MySQL.
-- Preparar o desenho da infraestrutura AWS.
-
-### Parte 2 - Infraestrutura AWS com IaC
-
-Escopo sugerido para a proxima etapa:
-
-- Criar Terraform em `infra/terraform`.
-- Criar VPC com subnets publicas e privadas.
-- Criar Security Groups.
-- Criar RDS MySQL em subnets privadas.
-- Criar ECR para a imagem do backend.
-- Criar ECS Fargate para o backend.
-- Criar ALB publico para expor a API.
-- Criar S3 para hospedar o frontend.
-- Criar CloudFront para entregar o frontend.
-- Configurar variaveis e outputs.
-
-### Parte 3 - Deploy e validacao
-
-Escopo sugerido para a ultima etapa:
-
-- Build e push da imagem do backend para o ECR.
-- Aplicar Terraform no ambiente AWS.
-- Publicar arquivos do frontend no S3.
-- Ajustar `frontend/config.js` ou substituicao equivalente com a URL final da API.
-- Testar `/api/health` no ALB.
-- Testar CRUD pelo CloudFront.
-- Documentar comandos finais e evidencias.
-
-## Arquitetura alvo
+## Arquitetura
 
 ```text
 Usuario
   |
   v
 CloudFront
-  |
-  v
-S3 static website: frontend
-
-Usuario/frontend
-  |
-  v
-ALB publico
-  |
-  v
-ECS Fargate: backend Node.js
-  |
-  v
-RDS MySQL privado
+  |-- /        -> S3 privado com frontend estatico
+  |-- /api/*   -> ALB publico
+                   |
+                   v
+                 ECS Fargate backend Node.js
+                   |
+                   v
+                 RDS MySQL privado
 ```
 
-## Variaveis que serao necessarias
+## Decisoes de custo
 
-- `aws_region`
-- `project_name`
-- `environment`
-- `db_name`
-- `db_username`
-- `db_password`
-- `backend_image_tag`
+- Sem NAT Gateway. O ECS roda em subnets publicas com IP publico, mas aceita trafego somente do ALB.
+- RDS pequeno: `db.t4g.micro`, 20 GiB, single-AZ.
+- ECS Fargate minimo: `256` CPU e `512` MiB, `desired_count = 1`.
+- CloudWatch logs com retencao de 7 dias.
+- CloudFront `PriceClass_100`.
+- RDS com `skip_final_snapshot = true` e `deletion_protection = false` para facilitar destruir o ambiente de treinamento.
 
-## Observacoes tecnicas
+## Pre-requisitos
 
-- O backend ja possui `/api/health`, util para health check no ALB/ECS.
-- O frontend foi ajustado para aceitar `window.API_BASE_URL` via `frontend/config.js`.
-- Em AWS, o RDS deve ficar privado. Somente o ECS acessa o banco.
-- O backend pode ficar em subnets privadas com saida via NAT, ou em subnets publicas sem IP publico se o pull da imagem e logs forem atendidos por endpoints/NAT. Para treinamento, a opcao mais simples costuma ser ECS privado com NAT.
+- AWS CLI autenticado.
+- Terraform >= 1.6.
+- Docker rodando.
+- Permissoes AWS para VPC, ECS, ECR, RDS, IAM, ALB, S3, CloudFront, CloudWatch e Secrets Manager.
+
+## Deploy
+
+Entre na pasta Terraform:
+
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+```
+
+Crie primeiro o ECR, porque o ECS precisa da imagem existente:
+
+```bash
+terraform apply -target=aws_ecr_repository.backend
+```
+
+Suba a imagem do backend:
+
+```bash
+cd ../..
+./infra/scripts/push-backend-image.sh
+```
+
+Crie o restante da infraestrutura:
+
+```bash
+cd infra/terraform
+terraform apply
+```
+
+Publique o frontend no S3 e invalide o CloudFront:
+
+```bash
+cd ../..
+./infra/scripts/deploy-frontend.sh
+```
+
+## Validacao
+
+Veja as URLs:
+
+```bash
+cd infra/terraform
+terraform output frontend_url
+terraform output api_health_url
+```
+
+Teste a API:
+
+```bash
+curl "$(terraform output -raw api_health_url)"
+curl "$(terraform output -raw api_url)/records"
+```
+
+Abra a URL do frontend e teste criar, editar e deletar registros.
+
+## Destruir ambiente
+
+Para evitar custo parado:
+
+```bash
+cd infra/terraform
+terraform destroy
+```
